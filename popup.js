@@ -63,7 +63,7 @@ Claim: "${text}"`;
     scanStatus.textContent = `Scanning (${mode === "deep" ? "Deep Scan" : "Scan"})...`;
 
     // 3) Call your external backend rather than directly calling OpenAI
-    fetch("https://YOUR_BACKEND_URL/api/factcheck", {
+    fetch("https://detectifyy-production.up.railway.app/api/factcheck", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: prompt })
