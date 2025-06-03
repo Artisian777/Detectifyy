@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Detectify",
+  "version": "1.0",
+  "description": "Right-click selected text to scan or deep scan with GPT and get a truth score.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}

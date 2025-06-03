@@ -1,0 +1,6 @@
+# Node.js dependencies
+detectify-backend/node_modules/
+detectify-backend/.env
+
+# Do not commit API keys
+*.env

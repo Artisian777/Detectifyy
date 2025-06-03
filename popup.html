@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Detectify</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #121212;
+        color: white;
+        width: 360px;
+        padding: 20px;
+        margin: 0;
+        overflow-x: hidden;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        height: 100%;
+      }
+
+      .screen {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        height: 100%;
+      }
+
+      .logo {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .scanning {
+        color: #4fc3f7;
+        font-size: 14px;
+        animation: pulse 1.5s infinite ease-in-out;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(1.1);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .scan-completed {
+        color: #4fc3f7;
+        font-size: 14px;
+      }
+
+      .score-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 20px;
+        font-size: 32px;
+        font-weight: 700;
+        color: #4fc3f7;
+        position: relative;
+      }
+
+      .score-box.scanning::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(79, 195, 247, 0.2),
+          transparent
+        );
+        animation: scan 2s infinite;
+      }
+
+      @keyframes scan {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(200%);
+        }
+      }
+
+      .rating-label {
+        font-size: 14px;
+        font-weight: 400;
+        margin-top: 5px;
+        color: #aaa;
+      }
+
+      .score-meaning,
+      .explanation {
+        font-size: 14px;
+        font-weight: 400;
+        color: #ccc;
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        background-color: #181818;
+        border-radius: 6px;
+        line-height: 1.5;
+        max-height: 0;
+        overflow-y: hidden;
+        transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+        opacity: 0;
+      }
+
+      .score-meaning.visible,
+      .explanation.visible {
+        max-height: 300px;
+        opacity: 1;
+        overflow-y: auto;
+      }
+
+      .score-meaning::-webkit-scrollbar,
+      .explanation::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .score-meaning::-webkit-scrollbar-thumb,
+      .explanation::-webkit-scrollbar-thumb {
+        background: #4fc3f7;
+        border-radius: 3px;
+      }
+
+      .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .btn {
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+      }
+
+      .btn.primary {
+        background-color: #1a73e8;
+        color: white;
+      }
+
+      .btn.primary:hover {
+        background-color: #1669c1;
+        transform: translateY(-2px);
+      }
+
+      .btn.secondary {
+        background-color: #2c2c2c;
+        color: white;
+      }
+
+      .btn.secondary:hover {
+        background-color: #3a3a3a;
+        transform: translateY(-2px);
+      }
+
+      .formatted-paragraph {
+        margin-bottom: 10px;
+      }
+
+      .formatted-paragraph strong {
+        color: #66ccff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="screen">
+        <div class="logo">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 2C8.268 2 2 8.268 2 16C2 23.732 8.268 30 16 30C23.732 30 30 23.732 30 16C30 8.268 23.732 2 16 2Z"
+              stroke="#4fc3f7"
+              stroke-width="2"
+            />
+            <path
+              d="M10 16L14 20L22 12"
+              stroke="#4fc3f7"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="title-group">
+            <h3>Detectify</h3>
+            <span id="scanStatus" class="scanning">
+              Scanning (<span id="scanMode">Scan</span>)...
+            </span>
+          </div>
+        </div>
+
+        <div class="score-box scanning" id="scoreBox">
+          <span id="scoreValue">–</span>
+          <span class="rating-label" id="scoreText"
+            >Truth Score (0 to 5)</span
+          >
+          <div class="score-meaning" id="scoreExplanation"></div>
+          <div class="explanation" id="explanationText"></div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn primary" id="explainBtn">Show Explanation</button>
+          <button class="btn secondary" id="whyScoreBtn">Why This Score?</button>
+          <button class="btn secondary" id="close">Complete</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
