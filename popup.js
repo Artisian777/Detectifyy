@@ -3,18 +3,67 @@
 const scoreRegex = /truth\s*score\s*[:\-]?\s*(\d(?:\.\d+)?)/i;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const scanStatus      = document.getElementById("scanStatus");
-  const scoreBox        = document.getElementById("scoreBox");
-  const scoreValue      = document.getElementById("scoreValue");
-  const scoreText       = document.getElementById("scoreText");
-  const closeBtn        = document.getElementById("close");
-  const explanationEl   = document.getElementById("explanationText");
-  const explainBtn      = document.getElementById("explainBtn");
-  const whyScoreBtn     = document.getElementById("whyScoreBtn");
+  const scanStatus         = document.getElementById("scanStatus");
+  const scoreBox           = document.getElementById("scoreBox");
+  const scoreValue         = document.getElementById("scoreValue");
+  const scoreText          = document.getElementById("scoreText");
+  const closeBtn           = document.getElementById("close");
+  const explanationEl      = document.getElementById("explanationText");
+  const explainBtn         = document.getElementById("explainBtn");
+  const whyScoreBtn        = document.getElementById("whyScoreBtn");
   const scoreExplanationEl = document.getElementById("scoreExplanation");
-  const scanModeText    = document.getElementById("scanMode");
+  const scanModeText       = document.getElementById("scanMode");
+  const biasToneBtn        = document.getElementById("biasToneBtn");
+  const biasToneBlock      = document.getElementById("biasToneBlock");
+  const toneEl             = document.getElementById("toneText");
+  const biasEl             = document.getElementById("biasText");
+  const html               = document.documentElement;
+  const themeToggle        = document.getElementById("themeToggle");
+  const themeIcon          = document.getElementById("themeIcon");
 
-  // 1) Retrieve the selected text + mode from chrome.storage
+  // Initialize Bias & Tone button text
+  biasToneBtn.textContent = biasToneBlock.style.display === "block"
+    ? "Hide Bias & Tone"
+    : "Bias & Tone Analysis";
+
+  // Load stored theme
+  chrome.storage.local.get("theme", ({ theme }) => {
+    const isLight = theme === "light";
+    html.setAttribute("data-theme", isLight ? "light" : "dark");
+    themeIcon.textContent = isLight ? "☀️" : "🌙";
+  });
+
+  // Theme toggle handler
+  themeToggle.addEventListener("click", () => {
+    const currentTheme = html.getAttribute("data-theme");
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    html.setAttribute("data-theme", newTheme);
+    themeIcon.textContent = newTheme === "light" ? "☀️" : "🌙";
+    chrome.storage.local.set({ theme: newTheme });
+  });
+
+  // Bias & Tone toggle handler
+  biasToneBtn.onclick = () => {
+    const isVisible = biasToneBlock.style.display === "block";
+    biasToneBlock.style.display = isVisible ? "none" : "block";
+    toneEl.style.display = isVisible ? "none" : "block";
+    biasEl.style.display = isVisible ? "none" : "block";
+    biasToneBtn.textContent = isVisible
+      ? "Bias & Tone Analysis"
+      : "Hide Bias & Tone";
+  };
+
+  // Emoji feedback buttons
+  document.querySelectorAll(".emoji").forEach(button => {
+    button.addEventListener("click", () => {
+      const feedback = button.dataset.feedback;
+      chrome.runtime.sendMessage({ action: "userFeedback", feedback });
+      button.parentElement.style.display = "none";
+      document.getElementById("thanks").classList.remove("hidden");
+    });
+  });
+
+  // Retrieve selected text + mode from chrome.storage
   chrome.storage.local.get(["text", "mode"], ({ text, mode }) => {
     let prompt = "";
 
@@ -32,6 +81,8 @@ Use the following guide to assign a Truth Score from 0 to 5:
 
 Have it in a format of display as:
 - Truth Score: [number]
+- Tone: [describe tone of the claim]
+- Bias: [describe any bias present]
 - Summary: brief summary of findings
 - Reasoning: explain why the score was given and what caveats prevented a higher score.
 - References: list links and publication titles if available.
@@ -51,33 +102,43 @@ Use the following guide to assign a Truth Score from 0 to 5:
 
 Have it in a format of display as:
 - Truth Score: [number]
+- Tone: [describe tone of the claim]
+- Bias: [describe any bias present]
 - Summary: brief summary of findings
 - Reasoning: explain why the score was given and what caveats prevented a higher score.
-- References: include URLs or publication names used
+- References: list links and publication titles if available.
 
 Claim: "${text}"`;
     }
 
-    // 2) Show “Scanning...” animation/text
+    // Show “Scanning...” animation/text
     scanStatus.classList.add("scanning");
     scanStatus.textContent = `Scanning (${mode === "deep" ? "Deep Scan" : "Scan"})...`;
 
-    // 3) Call your external backend rather than directly calling OpenAI
+    // Call external backend (Railway) instead of OpenAI directly
     fetch("https://detectifyy-production.up.railway.app/api/factcheck", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: prompt })
     })
-      .then((res) => res.json())
-      .then((response) => {
+      .then(res => res.json())
+      .then(response => {
         // Stop the scanning animation
         scanStatus.classList.remove("scanning");
         scanStatus.classList.add("scan-completed");
         scanStatus.textContent = `Scan Complete (${mode === "deep" ? "Deep Scan" : "Scan"})`;
         scoreBox.classList.remove("scanning");
+        document.getElementById("hourglass").textContent = "✅";
+        document.getElementById("hourglass").classList.remove("hourglass");
 
         const fullReply = response.reply || "";
         console.log("🔍 Full GPT response:", fullReply);
+
+        // Extract Tone & Bias if present
+        const toneMatch = fullReply.match(/Tone:\s*(.+)/i);
+        const biasMatch = fullReply.match(/Bias:\s*(.+)/i);
+        toneEl.textContent = `Tone: ${toneMatch ? toneMatch[1].trim() : "–"}`;
+        biasEl.textContent = `Bias: ${biasMatch ? biasMatch[1].trim() : "–"}`;
 
         // Extract the Truth Score from the reply
         const match = fullReply.match(scoreRegex);
@@ -99,45 +160,42 @@ Claim: "${text}"`;
           .split(/-\s*(?=Summary:|Reasoning:|References:|Sources:)/gi)
           .filter(Boolean);
 
-        let summaryHTML = "", reasoningHTML = "", referencesHTML = "";
+        let summaryHTML    = "";
+        let reasoningHTML  = "";
+        let referencesHTML = "";
 
-        sections.forEach((section) => {
+        sections.forEach(section => {
           const m = section.match(/^(Summary|Reasoning|References|Sources):\s*(.*)/is);
           if (!m) return;
-          const label = m[1].toLowerCase();
+          const label   = m[1].toLowerCase();
           const content = m[2].trim();
 
           if (label === "summary") {
-            summaryHTML = `<p class="formatted-paragraph"><strong>Summary:</strong> ${content}</p>`;
+            summaryHTML = `<p><strong>Summary:</strong> ${content}</p>`;
           } else if (label === "reasoning") {
-            reasoningHTML = `<p class="formatted-paragraph"><strong>Reasoning:</strong> ${content}</p>`;
-          } else if (label === "references" || label === "sources") {
-            // Split references by newline, semicolon, or bullet
+            reasoningHTML = `<p><strong>Reasoning:</strong> ${content}</p>`;
+          } else {
             const refs = content
-              .split(/[\n\r;•]+/)
-              .map((r) => r.trim())
+              .split(/[\n\r;\u2022]+/)
+              .map(r => r.trim())
               .filter(Boolean);
 
             const bullets = refs
-              .map((r) => {
-                // If we find an http(s) URL, wrap it in <a>
-                const urlMatch = r.match(/https?:\/\/[^\s)]+/i);
+              .map(r => {
+                const urlMatch = r.match(/https?:\/\/[^\s)\],]+/i);
                 if (urlMatch) {
-                  const url = urlMatch[0];
-                  // Remove any trailing parenthesis if present
-                  const cleanUrl = url.replace(/\)+$/, "");
-                  return `<li><a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a></li>`;
-                } else {
-                  return `<li>${r}</li>`;
+                  const rawUrl   = urlMatch[0];
+                  const cleanUrl = rawUrl.replace(/[).,]+$/, "");
+                  const trailing = rawUrl.slice(cleanUrl.length);
+                  return `<li><a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${trailing}</li>`;
                 }
+                return `<li>${r}</li>`;
               })
               .join("");
-
-            referencesHTML = `<div class="formatted-paragraph"><strong>References:</strong><ul>${bullets}</ul></div>`;
+            referencesHTML = `<div><strong>References:</strong><ul>${bullets}</ul></div>`;
           }
         });
 
-        // Insert the formatted HTML into the explanation container
         explanationEl.innerHTML = summaryHTML + reasoningHTML + referencesHTML;
         explanationEl.classList.remove("visible");
         explainBtn.style.display = "inline-block";
@@ -182,7 +240,7 @@ Claim: "${text}"`;
 
         closeBtn.style.display = "block";
       })
-      .catch((err) => {
+      .catch(err => {
         scanStatus.classList.remove("scanning");
         scanStatus.classList.add("scan-completed");
         scanStatus.textContent = "Failed to scan.";
@@ -194,8 +252,9 @@ Claim: "${text}"`;
       });
   });
 
-  // 4) Close button closes the popup
+  // Close button hides main screen and shows feedback
   closeBtn.addEventListener("click", () => {
-    window.close();
+    document.querySelector(".screen").style.display = "none";
+    document.getElementById("feedbackContainer").classList.remove("hidden");
   });
 });
