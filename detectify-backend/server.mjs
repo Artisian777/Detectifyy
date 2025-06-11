@@ -14,7 +14,13 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // 1) Enable CORS for your Chrome extension origin (and preflight OPTIONS)
 app.use(
   cors({
-    origin: "chrome-extension://ecihgjjbknncohhkamggmjlejeohagkm",
+    origin: (origin, callback) => {
+      if (origin && origin.startsWith("chrome-extension://")) {
+        callback(null, true); // ✅ allow any Chrome extension origin
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -66,10 +72,7 @@ app.post("/api/factcheck", async (req, res) => {
     }
 
     // 5) Ensure the CORS header is set on the JSON response
-    res.setHeader(
-      "Access-Control-Allow-Origin",
-      "chrome-extension://ecihgjjbknncohhkamggmjlejeohagkm"
-    );
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
     return res.json({
       reply: data.choices[0]?.message?.content || "No response.",
     });

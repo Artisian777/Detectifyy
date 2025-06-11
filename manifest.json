@@ -7,9 +7,11 @@
     "contextMenus",
     "storage",
     "activeTab"
+
   ],
   "host_permissions": [
-    "https://api.openai.com/*"
+    "https://api.openai.com/*",
+    "https://detectifyy-production.up.railway.app/api/factcheck/*"
   ],
   "background": {
     "service_worker": "background.js"
